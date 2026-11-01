@@ -1,263 +1,86 @@
-sawalefna_app/
-├── lib/
-│   ├── main.dart                   # نقطة البداية وتهيجة Supabase/LiveKit
-│   ├── core/
-│   │   ├── theme/app_theme.dart    # البنفسجي الداكن، الأسود، واللمسات الذهبية
-│   │   └── services/
-│   │       ├── supabase_service.dart # إدارة الحسابات والبيانات
-│   │       └── livekit_service.dart  # اتصال غرف الصوت المباشرة
-│   ├── models/
-│   │   ├── user_model.dart         # بيانات المستخدم والمستوى
-│   │   └── room_model.dart         # بيانات الغرفة والمقاعد
-│   ├── screens/
-│   │   ├── auth/login_screen.dart  # التسجيل ودخول الحسابات
-│   │   ├── home/home_screen.dart   # القائمة الرئيسية والغرف
-│   │   └── room/voice_room_screen.dart # الغرفة الصوتية والمقاعد والمايك
-import 'package:flutter/material.dart';
-
-class AppTheme {
-  static const Color primaryPurple = Color(0F1A0B2E);
-  static const Color accentGold = Color(0FDD4AF37);
-  static const Color darkBackground = Color(0F0F0F11);
-  static const Color cardBackground = Color(0F18181C);
-
-  static ThemeData get darkTheme {
-    return ThemeData(
-      brightness: Brightness.dark,
-      primaryColor: primaryPurple,
-      scaffoldBackgroundColor: darkBackground,
-      colorScheme: const ColorScheme.dark(
-        primary: accentGold,
-        secondary: primaryPurple,
-        surface: cardBackground,
-      ),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: primaryPurple,
-        elevation: 0,
-        centerTitle: true,
-        titleTextStyle: TextStyle(
-          color: accentGold,
-          fontSize: 22,
-          fontWeight: FontWeight.bold,
-          fontFamily: 'Cairo',
-        ),
-      ),
-    );
-  }
-}
-import 'package:livekit_client/livekit_client.dart';
-import 'package:permission_handler/permission_handler.dart';
-
-class LiveKitService {
-  Room? _room;
-
-  Future<bool> requestPermissions() async {
-    final status = await Permission.microphone.request();
-    return status.isGranted;
-  }
-
-  Future<void> joinVoiceRoom({required String url, required String token}) async {
-    if (!await requestPermissions()) return;
-
-    _room = Room();
-    
-    // إعدادات الصوت وتوليد الأحداث
-    RoomOptions roomOptions = const RoomOptions(
-      defaultAudioPublishOptions: AudioPublishOptions(
-        dtx: true,
-      ),
-    );
-
-    await _room!.connect(url, token, roomOptions: roomOptions);
-    
-    // تفعيل صوت المحادثة تلقائياً
-    await _room!.localParticipant?.setMicrophoneEnabled(true);
-  }
-
-  Future<void> toggleMicrophone(bool enabled) async {
-    await _room?.localParticipant?.setMicrophoneEnabled(enabled);
-  }
-
-  Future<void> leaveRoom() async {
-    await _room?.disconnect();
-    await _room?.dispose();
-    _room = null;
-  }
-}
-   import 'package:flutter/material.dart';
-
-class VoiceRoomScreen extends StatefulWidget {
-  final String roomTitle;
-  const VoiceRoomScreen({Key? key, required this.roomTitle}) : super(key: key);
-
-  @override
-  State<VoiceRoomScreen> createState() => _VoiceRoomScreenState();
-}
-
-class _VoiceRoomScreenState extends State<VoiceRoomScreen> {
-  bool isMicOn = false;
-  bool isHandRaised = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return Directionality(
-      textDirection: TextDirection.rtl,
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text(widget.roomTitle),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.exit_to_app, color: Colors.redAccent),
-              onPressed: () => Navigator.pop(context),
-            )
-          ],
-        ),
-        body: Column(
-          children: [
-            // شبكة المقاعد الصوتية (8 مقاعد)
-            Expanded(
-              child: GridView.builder(
-                padding: const EdgeInsets.all(16),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 4,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                ),
-                itemCount: 8,
-                itemBuilder: (context, index) {
-                  bool isOccupied = index < 3; // محاكاة مقاعد مشغولة
-                  return Column(
-                    children: [
-                      Stack(
-                        children: [
-                          CircleAvatar(
-                            radius: 30,
-                            backgroundColor: isOccupied ? const Color(0xFFD4AF37) : Colors.grey[800],
-                            child: Icon(
-                              isOccupied ? Icons.person : Icons.add_call,
-                              color: isOccupied ? Colors.black : Colors.white54,
-                            ),
-                          ),
-                          if (isOccupied && index == 0)
-                            const Positioned(
-                              bottom: 0,
-                              right: 0,
-                              child: CircleAvatar(
-                                radius: 10,
-                                backgroundColor: Colors.green,
-                                child: Icon(Icons.mic, size: 12, color: Colors.white),
-                              ),
-                            )
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        isOccupied ? 'عضو ${index + 1}' : 'مقعد فارغ',
-                        style: const TextStyle(fontSize: 11, color: Colors.white70),
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ),
-            
-            // شريط التحكم السفلي للميكروفون ورفع اليد والهدايا
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
-              decoration: const BoxDecoration(
-                color: Color(0xFF18181C),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  FloatingActionButton.small(
-                    heroTag: 'mic',
-                    backgroundColor: isMicOn ? const Color(0xFFD4AF37) : Colors.grey[700],
-                    child: Icon(isMicOn ? Icons.mic : Icons.mic_off, color: Colors.black),
-                    onPressed: () {
-                      setState(() => isMicOn = !isMicOn);
-                    },
-                  ),
-                  FloatingActionButton.small(
-                    heroTag: 'hand',
-                    backgroundColor: isHandRaised ? Colors.amber : Colors.grey[700],
-                    child: const Icon(Icons.front_hand, color: Colors.white),
-                    onPressed: () {
-                      setState(() => isHandRaised = !isHandRaised);
-                    },
-                  ),
-                  FloatingActionButton.small(
-                    heroTag: 'gift',
-                    backgroundColor: Colors.purple,
-                    child: const Icon(Icons.card_giftcard, color: Colors.white),
-                    onPressed: () {},
-                  ),
-                ],
-              ),
-            )
-          ],
-        ),
-      ),
-    );
-  }
-}
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>سوالفنا | Sawalefna Voice App</title>
+    <title>سوالفنا | Sawalefna</title>
+    <!-- FontAwesome للأيقونات -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
         :root {
-            --bg-dark: #0f0f11;
+            --bg-primary: #0f0f11;
+            --bg-card: #18181c;
             --purple-main: #1a0b2e;
-            --card-bg: #18181c;
             --accent-gold: #d4af37;
-            --text-light: #ffffff;
+            --text-color: #ffffff;
+            --text-sub: #a0a0ab;
+            --border-color: #2a2a30;
+        }
+
+        /* الوضع الفاتح */
+        body.light-theme {
+            --bg-primary: #f4f4f7;
+            --bg-card: #ffffff;
+            --purple-main: #4a2c82;
+            --accent-gold: #b8860b;
+            --text-color: #111111;
+            --text-sub: #666666;
+            --border-color: #e0e0e0;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, sans-serif; }
 
         body {
-            background-color: var(--bg-dark);
-            color: var(--text-light);
+            background-color: var(--bg-primary);
+            color: var(--text-color);
             display: flex;
             flex-direction: column;
             min-height: 100vh;
+            padding-bottom: 70px;
+            transition: all 0.3s ease;
         }
 
+        /* الهيدر العلوي */
         header {
-            background: linear-gradient(180deg, var(--purple-main) 0%, var(--bg-dark) 100%);
-            padding: 20px 15px;
-            text-align: center;
-            border-bottom: 1px solid #2a2a30;
+            background: linear-gradient(180deg, var(--purple-main) 0%, var(--bg-primary) 100%);
+            padding: 18px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
         }
 
         .logo-title {
-            font-size: 26px;
+            font-size: 22px;
             font-weight: bold;
             color: var(--accent-gold);
-            letter-spacing: 1px;
         }
 
-        .subtitle { font-size: 13px; color: #a0a0ab; margin-top: 4px; }
+        .theme-toggle {
+            background: none;
+            border: none;
+            color: var(--accent-gold);
+            font-size: 20px;
+            cursor: pointer;
+        }
 
-        .container { flex: 1; padding: 15px; display: flex; flex-direction: column; gap: 15px; }
+        .container { padding: 15px; display: flex; flex-direction: column; gap: 15px; }
 
+        /* التبويبات */
+        .page-section { display: none; }
+        .page-section.active { display: block; }
+
+        /* كروت الغرف الصوتية */
         .room-card {
-            background: var(--card-bg);
-            border: 1px solid #2d2d35;
-            border-radius: 12px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
             padding: 15px;
+            margin-bottom: 12px;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
-
-        .room-info h4 { font-size: 16px; color: #fff; }
-        .room-info p { font-size: 12px; color: #888899; margin-top: 4px; }
 
         .join-btn {
             background: linear-gradient(45deg, var(--accent-gold), #aa7c11);
@@ -269,82 +92,248 @@ class _VoiceRoomScreenState extends State<VoiceRoomScreen> {
             cursor: pointer;
         }
 
-        .controls-bar {
-            background: var(--card-bg);
-            border-radius: 15px;
+        /* شاشة الغرفة الصوتية والمقاعد */
+        .seats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .seat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .avatar-box {
+            width: 55px;
+            height: 55px;
+            border-radius: 50%;
+            background: #2a2a30;
+            border: 2px solid var(--accent-gold);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            color: var(--accent-gold);
+        }
+
+        .mic-status {
+            position: absolute;
+            bottom: -2px;
+            right: -2px;
+            background: green;
+            color: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* شريط التحكم السفلي في الغرفة */
+        .voice-controls {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
             padding: 12px;
             display: flex;
             justify-content: space-around;
-            border: 1px solid #2a2a30;
+            margin-top: 15px;
         }
 
-        .control-btn {
+        .ctrl-btn {
             background: #25252b;
             border: none;
-            width: 48px;
-            height: 48px;
+            width: 45px;
+            height: 45px;
             border-radius: 50%;
             color: var(--accent-gold);
             font-size: 18px;
             cursor: pointer;
         }
 
-        .control-btn.active { background: var(--accent-gold); color: #000; }
+        .ctrl-btn.active {
+            background: var(--accent-gold);
+            color: #000;
+        }
+
+        /* القائمة السفلية للتنقل */
+        nav.bottom-nav {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            background: var(--bg-card);
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-around;
+            padding: 10px 0;
+        }
+
+        .nav-item {
+            color: var(--text-sub);
+            text-decoration: none;
+            font-size: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+        }
+
+        .nav-item.active { color: var(--accent-gold); }
     </style>
 </head>
 <body>
 
+    <!-- الهيدر -->
     <header>
-        <div class="logo-title">سوالفنا | SAWALEFNA</div>
-        <div class="subtitle">منصة الغرف الصوتية والتفاعلية المباشرة</div>
+        <div class="logo-title"><i class="fas fa-comments"></i> سوالفنا</div>
+        <button class="theme-toggle" onclick="toggleTheme()"><i class="fas fa-moon"></i></button>
     </header>
 
     <div class="container">
-        <div class="room-card">
-            <div class="room-info">
-                <h4>مجلس السمر والأنس</h4>
-                <p><i class="fas fa-users"></i> 24 متصل الآن</p>
+        
+        <!-- صفحة الرئيسية والغرف -->
+        <div id="home" class="page-section active">
+            <h3 style="margin-bottom: 10px;">الغرف المباشرة</h3>
+            
+            <div class="room-card">
+                <div>
+                    <h4>مجلس السمر والأنس</h4>
+                    <p style="font-size: 12px; color: var(--text-sub);"><i class="fas fa-users"></i> 18 متواجد الآن</p>
+                </div>
+                <button class="join-btn" onclick="openRoom('مجلس السمر والأنس')">دخول</button>
             </div>
-            <button class="join-btn" onclick="joinRoom('مجلس السمر والأنس')">دخول الغرفة</button>
+
+            <div class="room-card">
+                <div>
+                    <h4>ديوانية الشكولاتة والسوالف</h4>
+                    <p style="font-size: 12px; color: var(--text-sub);"><i class="fas fa-users"></i> 32 متواجد الآن</p>
+                </div>
+                <button class="join-btn" onclick="openRoom('ديوانية الشكولاتة')">دخول</button>
+            </div>
         </div>
 
-        <div class="controls-bar">
-            <button class="control-btn" id="micBtn" onclick="toggleMic()">
-                <i class="fas fa-microphone-slash"></i>
-            </button>
-            <button class="control-btn" onclick="alert('تم إرسال طلب الصعود للمنصة')">
-                <i class="fas fa-hand"></i>
-            </button>
+        <!-- واجهة الغرفة الصوتية المباشرة -->
+        <div id="roomView" class="page-section">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h3 id="currentRoomTitle">اسم الغرفة</h3>
+                <button onclick="leaveRoom()" style="background:red; color:#fff; border:none; padding:5px 12px; border-radius:10px;">خروج</button>
+            </div>
+
+            <!-- المقاعد الصوتية (8 مقاعد) -->
+            <div class="seats-grid">
+                <div class="seat">
+                    <div class="avatar-box"><i class="fas fa-user-crown"></i><div class="mic-status"><i class="fas fa-mic"></i></div></div>
+                    <span style="font-size: 11px;">الآدمين</span>
+                </div>
+                <div class="seat">
+                    <div class="avatar-box"><i class="fas fa-user"></i><div class="mic-status" style="background:gray;"><i class="fas fa-mic-slash"></i></div></div>
+                    <span style="font-size: 11px;">عبود</span>
+                </div>
+                <!-- 6 مقاعد فارغة -->
+                <script>
+                    for(let i=3; i<=8; i++){
+                        document.write(`
+                            <div class="seat">
+                                <div class="avatar-box" style="border:1px dashed #555; color:#555;"><i class="fas fa-plus"></i></div>
+                                <span style="font-size: 11px; color:#666;">مقعد ${i}</span>
+                            </div>
+                        `);
+                    }
+                </script>
+            </div>
+
+            <!-- أزرار التحكم بالصوت -->
+            <div class="voice-controls">
+                <button class="ctrl-btn" id="micBtn" onclick="toggleMic()"><i class="fas fa-microphone-slash"></i></button>
+                <button class="ctrl-btn" onclick="alert('تم رفع اليد لطلب التحدث!')"><i class="fas fa-hand"></i></button>
+                <button class="ctrl-btn" onclick="alert('قسم الهدايا الافتراضية قريباً!')"><i class="fas fa-gift"></i></button>
+            </div>
         </div>
+
+        <!-- صفحة اكتشف -->
+        <div id="explore" class="page-section">
+            <h3>اكتشف الاهتمامات</h3>
+            <p style="color: var(--text-sub); margin-top: 10px;">ابحث عن الغرف والأصدقاء حسب الاهتمام.</p>
+        </div>
+
+        <!-- صفحة الرسائل -->
+        <div id="messages" class="page-section">
+            <h3>الرسائل الخاصة</h3>
+            <p style="color: var(--text-sub); margin-top: 10px;">لا توجد محادثات جديدة حالياً.</p>
+        </div>
+
+        <!-- صفحة الملف الشخصي -->
+        <div id="profile" class="page-section">
+            <div style="text-align: center; margin-top: 20px;">
+                <div class="avatar-box" style="width: 80px; height: 80px; margin: 0 auto; font-size: 30px;">
+                    <i class="fas fa-user"></i>
+                </div>
+                <h3 style="margin-top: 10px;">عبود</h3>
+                <p style="color: var(--accent-gold); font-size: 14px;">المستوى: VIP ⭐️</p>
+            </div>
+        </div>
+
     </div>
 
+    <!-- شريط التنقل السفلي -->
+    <nav class="bottom-nav">
+        <div class="nav-item active" onclick="switchTab('home', this)"><i class="fas fa-home"></i>الرئيسية</div>
+        <div class="nav-item" onclick="switchTab('explore', this)"><i class="fas fa-compass"></i>اكتشف</div>
+        <div class="nav-item" onclick="switchTab('messages', this)"><i class="fas fa-comment-dots"></i>الرسائل</div>
+        <div class="nav-item" onclick="switchTab('profile', this)"><i class="fas fa-user"></i>حسابي</div>
+    </nav>
+
     <script>
-        let isMicActive = false;
+        let isMicOn = false;
+
+        function switchTab(tabId, element) {
+            document.querySelectorAll('.page-section').forEach(sec => sec.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            element.classList.add('active');
+        }
+
+        function openRoom(title) {
+            document.querySelectorAll('.page-section').forEach(sec => sec.classList.remove('active'));
+            document.getElementById('roomView').classList.add('active');
+            document.getElementById('currentRoomTitle').innerText = title;
+        }
+
+        function leaveRoom() {
+            switchTab('home', document.querySelectorAll('.nav-item')[0]);
+        }
 
         async function toggleMic() {
             const btn = document.getElementById('micBtn');
             const icon = btn.querySelector('i');
             
-            if (!isMicActive) {
+            if (!isMicOn) {
                 try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    isMicActive = true;
+                    await navigator.mediaDevices.getUserMedia({ audio: true });
+                    isMicOn = true;
                     btn.classList.add('active');
                     icon.className = 'fas fa-microphone';
                 } catch (err) {
-                    alert('يرجى منح إذن الميكروفون للتحدث داخل الغرفة.');
+                    alert('يرجى السماح بالوصول للميكروفون للتحدث.');
                 }
             } else {
-                isMicActive = false;
+                isMicOn = false;
                 btn.classList.remove('active');
                 icon.className = 'fas fa-microphone-slash';
             }
         }
 
-        function joinRoom(name) {
-            alert('تم الانضمام إلى: ' + name);
+        function toggleTheme() {
+            document.body.classList.toggle('light-theme');
         }
     </script>
 </body>
 </html>
- 
