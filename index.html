@@ -1,0 +1,350 @@
+sawalefna_app/
+├── lib/
+│   ├── main.dart                   # نقطة البداية وتهيجة Supabase/LiveKit
+│   ├── core/
+│   │   ├── theme/app_theme.dart    # البنفسجي الداكن، الأسود، واللمسات الذهبية
+│   │   └── services/
+│   │       ├── supabase_service.dart # إدارة الحسابات والبيانات
+│   │       └── livekit_service.dart  # اتصال غرف الصوت المباشرة
+│   ├── models/
+│   │   ├── user_model.dart         # بيانات المستخدم والمستوى
+│   │   └── room_model.dart         # بيانات الغرفة والمقاعد
+│   ├── screens/
+│   │   ├── auth/login_screen.dart  # التسجيل ودخول الحسابات
+│   │   ├── home/home_screen.dart   # القائمة الرئيسية والغرف
+│   │   └── room/voice_room_screen.dart # الغرفة الصوتية والمقاعد والمايك
+import 'package:flutter/material.dart';
+
+class AppTheme {
+  static const Color primaryPurple = Color(0F1A0B2E);
+  static const Color accentGold = Color(0FDD4AF37);
+  static const Color darkBackground = Color(0F0F0F11);
+  static const Color cardBackground = Color(0F18181C);
+
+  static ThemeData get darkTheme {
+    return ThemeData(
+      brightness: Brightness.dark,
+      primaryColor: primaryPurple,
+      scaffoldBackgroundColor: darkBackground,
+      colorScheme: const ColorScheme.dark(
+        primary: accentGold,
+        secondary: primaryPurple,
+        surface: cardBackground,
+      ),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: primaryPurple,
+        elevation: 0,
+        centerTitle: true,
+        titleTextStyle: TextStyle(
+          color: accentGold,
+          fontSize: 22,
+          fontWeight: FontWeight.bold,
+          fontFamily: 'Cairo',
+        ),
+      ),
+    );
+  }
+}
+import 'package:livekit_client/livekit_client.dart';
+import 'package:permission_handler/permission_handler.dart';
+
+class LiveKitService {
+  Room? _room;
+
+  Future<bool> requestPermissions() async {
+    final status = await Permission.microphone.request();
+    return status.isGranted;
+  }
+
+  Future<void> joinVoiceRoom({required String url, required String token}) async {
+    if (!await requestPermissions()) return;
+
+    _room = Room();
+    
+    // إعدادات الصوت وتوليد الأحداث
+    RoomOptions roomOptions = const RoomOptions(
+      defaultAudioPublishOptions: AudioPublishOptions(
+        dtx: true,
+      ),
+    );
+
+    await _room!.connect(url, token, roomOptions: roomOptions);
+    
+    // تفعيل صوت المحادثة تلقائياً
+    await _room!.localParticipant?.setMicrophoneEnabled(true);
+  }
+
+  Future<void> toggleMicrophone(bool enabled) async {
+    await _room?.localParticipant?.setMicrophoneEnabled(enabled);
+  }
+
+  Future<void> leaveRoom() async {
+    await _room?.disconnect();
+    await _room?.dispose();
+    _room = null;
+  }
+}
+   import 'package:flutter/material.dart';
+
+class VoiceRoomScreen extends StatefulWidget {
+  final String roomTitle;
+  const VoiceRoomScreen({Key? key, required this.roomTitle}) : super(key: key);
+
+  @override
+  State<VoiceRoomScreen> createState() => _VoiceRoomScreenState();
+}
+
+class _VoiceRoomScreenState extends State<VoiceRoomScreen> {
+  bool isMicOn = false;
+  bool isHandRaised = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(widget.roomTitle),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.exit_to_app, color: Colors.redAccent),
+              onPressed: () => Navigator.pop(context),
+            )
+          ],
+        ),
+        body: Column(
+          children: [
+            // شبكة المقاعد الصوتية (8 مقاعد)
+            Expanded(
+              child: GridView.builder(
+                padding: const EdgeInsets.all(16),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 4,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                ),
+                itemCount: 8,
+                itemBuilder: (context, index) {
+                  bool isOccupied = index < 3; // محاكاة مقاعد مشغولة
+                  return Column(
+                    children: [
+                      Stack(
+                        children: [
+                          CircleAvatar(
+                            radius: 30,
+                            backgroundColor: isOccupied ? const Color(0xFFD4AF37) : Colors.grey[800],
+                            child: Icon(
+                              isOccupied ? Icons.person : Icons.add_call,
+                              color: isOccupied ? Colors.black : Colors.white54,
+                            ),
+                          ),
+                          if (isOccupied && index == 0)
+                            const Positioned(
+                              bottom: 0,
+                              right: 0,
+                              child: CircleAvatar(
+                                radius: 10,
+                                backgroundColor: Colors.green,
+                                child: Icon(Icons.mic, size: 12, color: Colors.white),
+                              ),
+                            )
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        isOccupied ? 'عضو ${index + 1}' : 'مقعد فارغ',
+                        style: const TextStyle(fontSize: 11, color: Colors.white70),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+            
+            // شريط التحكم السفلي للميكروفون ورفع اليد والهدايا
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
+              decoration: const BoxDecoration(
+                color: Color(0xFF18181C),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  FloatingActionButton.small(
+                    heroTag: 'mic',
+                    backgroundColor: isMicOn ? const Color(0xFFD4AF37) : Colors.grey[700],
+                    child: Icon(isMicOn ? Icons.mic : Icons.mic_off, color: Colors.black),
+                    onPressed: () {
+                      setState(() => isMicOn = !isMicOn);
+                    },
+                  ),
+                  FloatingActionButton.small(
+                    heroTag: 'hand',
+                    backgroundColor: isHandRaised ? Colors.amber : Colors.grey[700],
+                    child: const Icon(Icons.front_hand, color: Colors.white),
+                    onPressed: () {
+                      setState(() => isHandRaised = !isHandRaised);
+                    },
+                  ),
+                  FloatingActionButton.small(
+                    heroTag: 'gift',
+                    backgroundColor: Colors.purple,
+                    child: const Icon(Icons.card_giftcard, color: Colors.white),
+                    onPressed: () {},
+                  ),
+                ],
+              ),
+            )
+          ],
+        ),
+      ),
+    );
+  }
+}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>سوالفنا | Sawalefna Voice App</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0f0f11;
+            --purple-main: #1a0b2e;
+            --card-bg: #18181c;
+            --accent-gold: #d4af37;
+            --text-light: #ffffff;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, sans-serif; }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        header {
+            background: linear-gradient(180deg, var(--purple-main) 0%, var(--bg-dark) 100%);
+            padding: 20px 15px;
+            text-align: center;
+            border-bottom: 1px solid #2a2a30;
+        }
+
+        .logo-title {
+            font-size: 26px;
+            font-weight: bold;
+            color: var(--accent-gold);
+            letter-spacing: 1px;
+        }
+
+        .subtitle { font-size: 13px; color: #a0a0ab; margin-top: 4px; }
+
+        .container { flex: 1; padding: 15px; display: flex; flex-direction: column; gap: 15px; }
+
+        .room-card {
+            background: var(--card-bg);
+            border: 1px solid #2d2d35;
+            border-radius: 12px;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .room-info h4 { font-size: 16px; color: #fff; }
+        .room-info p { font-size: 12px; color: #888899; margin-top: 4px; }
+
+        .join-btn {
+            background: linear-gradient(45deg, var(--accent-gold), #aa7c11);
+            color: #000;
+            border: none;
+            padding: 8px 18px;
+            border-radius: 20px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .controls-bar {
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 12px;
+            display: flex;
+            justify-content: space-around;
+            border: 1px solid #2a2a30;
+        }
+
+        .control-btn {
+            background: #25252b;
+            border: none;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            color: var(--accent-gold);
+            font-size: 18px;
+            cursor: pointer;
+        }
+
+        .control-btn.active { background: var(--accent-gold); color: #000; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo-title">سوالفنا | SAWALEFNA</div>
+        <div class="subtitle">منصة الغرف الصوتية والتفاعلية المباشرة</div>
+    </header>
+
+    <div class="container">
+        <div class="room-card">
+            <div class="room-info">
+                <h4>مجلس السمر والأنس</h4>
+                <p><i class="fas fa-users"></i> 24 متصل الآن</p>
+            </div>
+            <button class="join-btn" onclick="joinRoom('مجلس السمر والأنس')">دخول الغرفة</button>
+        </div>
+
+        <div class="controls-bar">
+            <button class="control-btn" id="micBtn" onclick="toggleMic()">
+                <i class="fas fa-microphone-slash"></i>
+            </button>
+            <button class="control-btn" onclick="alert('تم إرسال طلب الصعود للمنصة')">
+                <i class="fas fa-hand"></i>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let isMicActive = false;
+
+        async function toggleMic() {
+            const btn = document.getElementById('micBtn');
+            const icon = btn.querySelector('i');
+            
+            if (!isMicActive) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    isMicActive = true;
+                    btn.classList.add('active');
+                    icon.className = 'fas fa-microphone';
+                } catch (err) {
+                    alert('يرجى منح إذن الميكروفون للتحدث داخل الغرفة.');
+                }
+            } else {
+                isMicActive = false;
+                btn.classList.remove('active');
+                icon.className = 'fas fa-microphone-slash';
+            }
+        }
+
+        function joinRoom(name) {
+            alert('تم الانضمام إلى: ' + name);
+        }
+    </script>
+</body>
+</html>
+ 
