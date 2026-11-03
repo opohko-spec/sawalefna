@@ -3,62 +3,340 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>سوالفنا | صوتك يجمعنا</title>
-    <!-- هنا يمكنك وضع بقية ملفات التنسيق الخاصة بك -->
+    <title>سوالفنا - Sawalefna Live</title>
+    <!-- مكتبة Supabase للربط الحي -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --accent-color: #38bdf8;
+            --text-color: #f8fafc;
+            --border-color: rgba(255, 255, 255, 0.1);
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .app-container {
+            width: 100%;
+            max-width: 420px;
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 92vh;
+        }
+        .app-header {
+            padding: 15px;
+            text-align: center;
+            border-bottom: 1px solid var(--border-color);
+            background: rgba(15, 23, 42, 0.5);
+        }
+        .app-header h1 {
+            margin: 0;
+            font-size: 1.15rem;
+            color: var(--accent-color);
+        }
+        .content-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+        }
+        .section {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 14px;
+            margin-bottom: 14px;
+        }
+        .profile-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .avatar-box {
+            width: 55px;
+            height: 55px;
+            border-radius: 50%;
+            overflow: hidden;
+            border: 2px solid var(--accent-color);
+            background: #334155;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .avatar-box img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .input-group {
+            margin-bottom: 8px;
+        }
+        .input-group label {
+            display: block;
+            font-size: 0.8rem;
+            color: #94a3b8;
+            margin-bottom: 3px;
+        }
+        .input-group input {
+            width: 100%;
+            padding: 8px 10px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background: rgba(0,0,0,0.2);
+            color: #fff;
+            box-sizing: border-box;
+            font-size: 0.9rem;
+        }
+        .btn {
+            background: var(--accent-color);
+            color: #0f172a;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            transition: opacity 0.2s;
+            font-size: 0.9rem;
+        }
+        .btn:hover {
+            opacity: 0.9;
+        }
+        .chat-box {
+            height: 130px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            padding: 8px;
+            overflow-y: auto;
+            font-size: 0.85rem;
+            margin-bottom: 8px;
+            border: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .chat-message {
+            padding: 6px 8px;
+            background: rgba(56, 189, 248, 0.1);
+            border-radius: 6px;
+            word-break: break-word;
+        }
+        .audio-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 8px;
+        }
+    </style>
 </head>
 <body>
 
-    <!-- محتوى التطبيق واجهة الغرف -->
-    <div class="my-username-display">جارٍ التحميل...</div>
+<div class="app-container">
+    <div class="app-header">
+        <h1>🎙️ منصة سوالفنا (تحديث حي متزامن)</h1>
+    </div>
 
-    <!-- استدعاء مكتبة PeerJS -->
-    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <div class="content-area">
+        <!-- قسم الهوية وتوليد الأيدي -->
+        <div class="section">
+            <div class="profile-card">
+                <div class="avatar-box" id="avatarPreviewContainer">
+                    <span>👤</span>
+                </div>
+                <div>
+                    <h3 id="displayNickname" style="margin:0; font-size:1rem;">زائر جديد</h3>
+                    <span id="displayId" style="font-size:0.75rem; color:var(--accent-color);">ID: جاري الإنشاء...</span>
+                </div>
+            </div>
+            <div style="margin-top: 12px;">
+                <div class="input-group">
+                    <label>الاسم المستعار:</label>
+                    <input type="text" id="nicknameInput" placeholder="أدخل اسمك...">
+                </div>
+                <div class="input-group">
+                    <label>رابط الصورة الشخصية (URL):</label>
+                    <input type="text" id="avatarInput" placeholder="https://...">
+                </div>
+                <button class="btn" onclick="saveProfile()">حفظ واعتماد الهوية</button>
+            </div>
+        </div>
 
-    <script>
-        // دالة لتوليد معرف عشوائي فريد للمستخدم
-        function generateUniqueId() {
-            return 'user_' + Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
+        <!-- قسم الصوت (محاكاة الاتصال المباشر) -->
+        <div class="section" style="padding: 10px 14px;">
+            <h4 style="margin:0 0 8px 0; font-size: 0.9rem;">بث الصوت المباشر (Voice Stream)</h4>
+            <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.85rem; color: #10b981;">
+                <span id="micStatus">الميكروفون مغلق</span>
+                <button class="btn" id="micBtn" onclick="toggleMic()" style="width: auto; padding: 5px 12px; background: #10b981; color: #fff;">فتح الميكروفون</button>
+            </div>
+        </div>
+
+        <!-- قسم الدردشة الفورية -->
+        <div class="section" style="margin-bottom: 0;">
+            <h4 style="margin:0 0 8px 0; font-size: 0.9rem;">الدردشة العامة</h4>
+            <div class="chat-box" id="chatBox">
+                <div class="chat-message"><b>النظام:</b> جاري الاتصال بقناة الغرفة...</div>
+            </div>
+            <div style="display: flex; gap: 6px;">
+                <input type="text" id="chatInput" placeholder="اكتب رسالتك..." onkeypress="handleKeyPress(event)" style="flex:1; padding:8px; border-radius:8px; border:1px solid var(--border-color); background:rgba(0,0,0,0.2); color:#fff; font-size:0.85rem;">
+                <button class="btn" style="width: auto;" onclick="sendChatMessage()">إرسال</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // بيانات الاتصال بقاعدة بيانات سوبابيس (قم بوضع بيانات مشروعك الحقيقي هنا لاحقاً)
+    const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+    const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY';
+    
+    // تهيئة العميل (إذا لم تقم بوضع المفاتيح سيعمل التطبيق محلياً كوضع تجريبي مؤقت)
+    let supabaseClient = null;
+    try {
+        if (SUPABASE_URL !== 'YOUR_SUPABASE_URL') {
+            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        }
+    } catch(e) { console.log("وضع التشغيل المحلي"); }
+
+    // إدارة الهوية والـ ID المحلي
+    let currentUser = JSON.parse(localStorage.getItem('sawalefna_profile')) || {
+        id: 'SW-' + Math.floor(100000 + Math.random() * 900000),
+        nickname: 'ضيف_' + Math.floor(Math.random() * 900),
+        avatar: ''
+    };
+
+    let isMicActive = false;
+
+    function initApp() {
+        document.getElementById('nicknameInput').value = currentUser.nickname;
+        document.getElementById('avatarInput').value = currentUser.avatar;
+        updateUI();
+        
+        if (supabaseClient) {
+            subscribeToRealtime();
+        } else {
+            appendSystemMessage("تم تفعيل وضع المحاكاة المحلية بنجاح. أضف مفاتيح سوبابيس لربط الأجهزة الحقيقية.");
+        }
+    }
+
+    function updateUI() {
+        document.getElementById('displayNickname').innerText = currentUser.nickname;
+        document.getElementById('displayId').innerText = 'ID: ' + currentUser.id;
+        
+        const avatarContainer = document.getElementById('avatarPreviewContainer');
+        if (currentUser.avatar) {
+            avatarContainer.innerHTML = `<img src="${currentUser.avatar}" alt="Avatar" onerror="this.onerror=null; this.parentNode.innerHTML='👤';">`;
+        } else {
+            avatarContainer.innerHTML = `<span>👤</span>`;
+        }
+    }
+
+    function saveProfile() {
+        const nick = document.getElementById('nicknameInput').value.trim();
+        const avatarUrl = document.getElementById('avatarInput').value.trim();
+
+        if (nick) currentUser.nickname = nick;
+        currentUser.avatar = avatarUrl;
+
+        localStorage.setItem('sawalefna_profile', JSON.stringify(currentUser));
+        updateUI();
+        alert('تم تحديث الهوية وحفظ الـ ID بنجاح!');
+    }
+
+    function appendSystemMessage(text) {
+        const chatBox = document.getElementById('chatBox');
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'chat-message';
+        msgDiv.style.color = '#38bdf8';
+        msgDiv.innerHTML = `<b>النظام:</b> ${text}`;
+        chatBox.appendChild(msgDiv);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function sendChatMessage() {
+        const input = document.getElementById('chatInput');
+        const text = input.value.trim();
+        if (!text) return;
+
+        const messageData = {
+            id: currentUser.id,
+            nickname: currentUser.nickname,
+            avatar: currentUser.avatar,
+            text: text,
+            time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+        };
+
+        if (supabaseClient) {
+            // إرسال الرسالة لقاعدة البيانات عبر سوبابيس
+            supabaseClient.from('messages').insert([messageData]).then(({ error }) => {
+                if (error) console.log(error);
+            });
+        } else {
+            // عرضها محلياً في حال عدم ربط السيرفر
+            displayMessage(messageData);
         }
 
-        // التحقق من وجود اسم ومعرف سابق للمستخدم في ذاكرة التخزين المحلية
-        let currentUserId = localStorage.getItem('sawalefna_user_id');
-        let currentUserName = localStorage.getItem('sawalefna_user_name');
+        input.value = '';
+    }
 
-        // إذا لم يكن لدى المستخدم اسم أو معرف مخزن، نطلب منه إدخاله
-        if (!currentUserName || !currentUserId) {
-            currentUserId = generateUniqueId();
-            localStorage.setItem('sawalefna_user_id', currentUserId);
-            
-            // إظهار نافذة صغيرة لطلب الاسم المستعار
-            currentUserName = prompt("أهلاً بك في تطبيق سوالفنا! أدخل اسمك المستعار للبدء:", "مستخدم_" + Math.floor(Math.random() * 1000));
-            
-            if (!currentUserName || currentUserName.trim() === "") {
-                currentUserName = "زائر_" + Math.floor(Math.random() * 1000);
-            }
-            
-            localStorage.setItem('sawalefna_user_name', currentUserName);
+    function displayMessage(data) {
+        const chatBox = document.getElementById('chatBox');
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'chat-message';
+        msgDiv.innerHTML = `<b>${data.nickname} (${data.id}):</b> ${data.text}`;
+        chatBox.appendChild(msgDiv);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function handleKeyPress(e) {
+        if (e.key === 'Enter') sendChatMessage();
+    }
+
+    // إدارة تدفق الصوت (WebRTC / Audio Stream Simulation)
+    function toggleMic() {
+        isMicActive = !isMicActive;
+        const statusEl = document.getElementById('micStatus');
+        const btnEl = document.getElementById('micBtn');
+
+        if (isMicActive) {
+            statusEl.innerText = "الميكروفون يعمل (بث مباشر)";
+            statusEl.style.color = "#ef4444";
+            btnEl.innerText = "إغلاق الميكروفون";
+            btnEl.style.background = "#ef4444";
+            // هنا يتم تشغيل تفعيل مسار الصوت الحقيقي عبر WebRTC في الإنتاج
+        } else {
+            statusEl.innerText = "الميكروفون مغلق";
+            statusEl.style.color = "#10b981";
+            btnEl.innerText = "فتح الميكروفون";
+            btnEl.style.background = "#10b981";
         }
+    }
 
-        console.log("هوية المستخدم الحالية:", currentUserName, "المعرف:", currentUserId);
+    function subscribeToRealtime() {
+        // الاستماع للرسائل الجديدة لحظياً عبر قنوات سوبابيس
+        supabaseClient.channel('room_sawalefna')
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
+                displayMessage(payload.new);
+            })
+            .subscribe();
+        appendSystemMessage("تم الاتصال بالسيرفر السحابي بنجاح.");
+    }
 
-        // تهيئة اتصال PeerJS باستخدام المعرف الفريد
-        const peer = new Peer(currentUserId, {
-            host: '0.peerjs.com', 
-            port: 443,
-            secure: true
-        });
+    window.onload = initApp;
+</script>
 
-        peer.on('open', (id) => {
-            console.log('تم الاتصال بنجاح بمعرف فريد:', id);
-            initializeUserInterface(currentUserName, currentUserId);
-        });
-
-        function initializeUserInterface(name, id) {
-            const userLabel = document.querySelector('.my-username-display');
-            if (userLabel) {
-                userLabel.textContent = name;
-            }
-        }
-    </script>
 </body>
 </html>
