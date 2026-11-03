@@ -1,48 +1,64 @@
-// دالة لتوليد معرف عشوائي فريد للمستخدم (UUID / Unique ID)
-function generateUniqueId() {
-    return 'user_' + Math.random().toString(36.substring(2, 9) + Date.now().toString(36));
-}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>سوالفنا | صوتك يجمعنا</title>
+    <!-- هنا يمكنك وضع بقية ملفات التنسيق الخاصة بك -->
+</head>
+<body>
 
-// التحقق من وجود اسم ومعرف سابق للمستخدم في ذاكرة التخزين المحلية (LocalStorage)
-let currentUserId = localStorage.getItem('sawalefna_user_id');
-let currentUserName = localStorage.getItem('sawalefna_user_name');
+    <!-- محتوى التطبيق واجهة الغرف -->
+    <div class="my-username-display">جارٍ التحميل...</div>
 
-// إذا لم يكن لدى المستخدم اسم أو معرف مخزن، نطلب منه إدخاله عبر نافذة ترحيبية
-if (!currentUserName || !currentUserId) {
-    currentUserId = generateUniqueId();
-    localStorage.setItem('sawalefna_user_id', currentUserId);
-    
-    // إظهار نافذة صغيرة لطلب الاسم الحقيقي أو المستعار
-    currentUserName = prompt("أهلاً بك في تطبيق سوالفنا! أدخل اسمك المستعار للبدء:", "مستخدم_" + Math.floor(Math.random() * 1000));
-    
-    if (!currentUserName || currentUserName.trim() === "") {
-        currentUserName = "زائر_" + Math.floor(Math.random() * 1000);
-    }
-    
-    localStorage.setItem('sawalefna_user_name', currentUserName);
-}
+    <!-- استدعاء مكتبة PeerJS -->
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
 
-console.log("هوية المستخدم الحالية:", currentUserName, "المعرف:", currentUserId);
+    <script>
+        // دالة لتوليد معرف عشوائي فريد للمستخدم
+        function generateUniqueId() {
+            return 'user_' + Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
+        }
 
-// تهيئة اتصال PeerJS باستخدام المعرف الفريد الخاص بهذا المستخدم فقط
-// (استبدل القيم أدناه بالمتغيرات الخاصة بك في الاتصال الصوتي)
-const peer = new Peer(currentUserId, {
-    // إعدادات خادم الاتصال الخاص بك
-    host: '0.peerjs.com', 
-    port: 443,
-    secure: true
-});
+        // التحقق من وجود اسم ومعرف سابق للمستخدم في ذاكرة التخزين المحلية
+        let currentUserId = localStorage.getItem('sawalefna_user_id');
+        let currentUserName = localStorage.getItem('sawalefna_user_name');
 
-peer.on('open', (id) => {
-    console.log('تم الاتصال بنجاح بمعرف فريد:', id);
-    // هنا يتم تحديث واجهة المستخدم باسمه وجلوسه في المقعد المخصص
-    initializeUserInterface(currentUserName, currentUserId);
-});
+        // إذا لم يكن لدى المستخدم اسم أو معرف مخزن، نطلب منه إدخاله
+        if (!currentUserName || !currentUserId) {
+            currentUserId = generateUniqueId();
+            localStorage.setItem('sawalefna_user_id', currentUserId);
+            
+            // إظهار نافذة صغيرة لطلب الاسم المستعار
+            currentUserName = prompt("أهلاً بك في تطبيق سوالفنا! أدخل اسمك المستعار للبدء:", "مستخدم_" + Math.floor(Math.random() * 1000));
+            
+            if (!currentUserName || currentUserName.trim() === "") {
+                currentUserName = "زائر_" + Math.floor(Math.random() * 1000);
+            }
+            
+            localStorage.setItem('sawalefna_user_name', currentUserName);
+        }
 
-function initializeUserInterface(name, id) {
-    // تحديث عناصر الصفحة لتعكس اسم المستخدم الحقيقي بدلاً من الأسماء الثابتة
-    const userLabel = document.querySelector('.my-username-display'); // حدد العنصر الخاص بعرض اسمك في الواجهة
-    if (userLabel) {
-        userLabel.textContent = name;
-    }
-}
+        console.log("هوية المستخدم الحالية:", currentUserName, "المعرف:", currentUserId);
+
+        // تهيئة اتصال PeerJS باستخدام المعرف الفريد
+        const peer = new Peer(currentUserId, {
+            host: '0.peerjs.com', 
+            port: 443,
+            secure: true
+        });
+
+        peer.on('open', (id) => {
+            console.log('تم الاتصال بنجاح بمعرف فريد:', id);
+            initializeUserInterface(currentUserName, currentUserId);
+        });
+
+        function initializeUserInterface(name, id) {
+            const userLabel = document.querySelector('.my-username-display');
+            if (userLabel) {
+                userLabel.textContent = name;
+            }
+        }
+    </script>
+</body>
+</html>
