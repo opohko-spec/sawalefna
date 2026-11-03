@@ -1,414 +1,48 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>سوالفنا | Sawalefna</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <!-- مكتبة PeerJS للاتصال الصوتي الحقيقي المباشر -->
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <style>
-        :root {
-            --bg-primary: #0f0f11;
-            --bg-card: #18181c;
-            --purple-main: #1a0b2e;
-            --accent-gold: #d4af37;
-            --text-color: #ffffff;
-            --text-sub: #a0a0ab;
-            --border-color: #2a2a30;
-        }
+// دالة لتوليد معرف عشوائي فريد للمستخدم (UUID / Unique ID)
+function generateUniqueId() {
+    return 'user_' + Math.random().toString(36.substring(2, 9) + Date.now().toString(36));
+}
 
-        body.light-theme {
-            --bg-primary: #f4f4f7;
-            --bg-card: #ffffff;
-            --purple-main: #4a2c82;
-            --accent-gold: #b8860b;
-            --text-color: #111111;
-            --text-sub: #666666;
-            --border-color: #e0e0e0;
-        }
+// التحقق من وجود اسم ومعرف سابق للمستخدم في ذاكرة التخزين المحلية (LocalStorage)
+let currentUserId = localStorage.getItem('sawalefna_user_id');
+let currentUserName = localStorage.getItem('sawalefna_user_name');
 
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, sans-serif; }
+// إذا لم يكن لدى المستخدم اسم أو معرف مخزن، نطلب منه إدخاله عبر نافذة ترحيبية
+if (!currentUserName || !currentUserId) {
+    currentUserId = generateUniqueId();
+    localStorage.setItem('sawalefna_user_id', currentUserId);
+    
+    // إظهار نافذة صغيرة لطلب الاسم الحقيقي أو المستعار
+    currentUserName = prompt("أهلاً بك في تطبيق سوالفنا! أدخل اسمك المستعار للبدء:", "مستخدم_" + Math.floor(Math.random() * 1000));
+    
+    if (!currentUserName || currentUserName.trim() === "") {
+        currentUserName = "زائر_" + Math.floor(Math.random() * 1000);
+    }
+    
+    localStorage.setItem('sawalefna_user_name', currentUserName);
+}
 
-        body {
-            background-color: var(--bg-primary);
-            color: var(--text-color);
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
-            padding-bottom: 70px;
-        }
+console.log("هوية المستخدم الحالية:", currentUserName, "المعرف:", currentUserId);
 
-        header {
-            background: linear-gradient(180deg, var(--purple-main) 0%, var(--bg-primary) 100%);
-            padding: 15px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid var(--border-color);
-        }
+// تهيئة اتصال PeerJS باستخدام المعرف الفريد الخاص بهذا المستخدم فقط
+// (استبدل القيم أدناه بالمتغيرات الخاصة بك في الاتصال الصوتي)
+const peer = new Peer(currentUserId, {
+    // إعدادات خادم الاتصال الخاص بك
+    host: '0.peerjs.com', 
+    port: 443,
+    secure: true
+});
 
-        .logo-title { font-size: 20px; font-weight: bold; color: var(--accent-gold); }
+peer.on('open', (id) => {
+    console.log('تم الاتصال بنجاح بمعرف فريد:', id);
+    // هنا يتم تحديث واجهة المستخدم باسمه وجلوسه في المقعد المخصص
+    initializeUserInterface(currentUserName, currentUserId);
+});
 
-        .container { padding: 15px; flex: 1; }
-        .page-section { display: none; }
-        .page-section.active { display: block; }
-
-        /* الغرف */
-        .room-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border-color);
-            border-radius: 14px;
-            padding: 15px;
-            margin-bottom: 12px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .join-btn {
-            background: linear-gradient(45deg, var(--accent-gold), #aa7c11);
-            color: #000;
-            border: none;
-            padding: 8px 18px;
-            border-radius: 20px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        /* شبكة المقاعد الصوتية */
-        .seats-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 15px;
-            margin: 20px 0;
-            text-align: center;
-        }
-
-        .seat { display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer; }
-
-        .avatar-box {
-            width: 55px;
-            height: 55px;
-            border-radius: 50%;
-            background: #2a2a30;
-            border: 2px solid var(--accent-gold);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            position: relative;
-            color: var(--accent-gold);
-        }
-
-        .avatar-box.empty { border: 1px dashed #555; color: #555; }
-
-        .mic-status {
-            position: absolute;
-            bottom: -2px;
-            right: -2px;
-            background: green;
-            color: white;
-            border-radius: 50%;
-            width: 18px;
-            height: 18px;
-            font-size: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .mic-status.off { background: red; }
-
-        /* التحكم السفلي */
-        .voice-controls {
-            background: var(--bg-card);
-            border: 1px solid var(--border-color);
-            border-radius: 20px;
-            padding: 12px;
-            display: flex;
-            justify-content: space-around;
-            margin-top: 15px;
-        }
-
-        .ctrl-btn {
-            background: #25252b;
-            border: none;
-            width: 45px;
-            height: 45px;
-            border-radius: 50%;
-            color: var(--accent-gold);
-            font-size: 18px;
-            cursor: pointer;
-        }
-
-        .ctrl-btn.active { background: var(--accent-gold); color: #000; }
-
-        /* شريط التنقل السفلي */
-        nav.bottom-nav {
-            position: fixed;
-            bottom: 0;
-            width: 100%;
-            background: var(--bg-card);
-            border-top: 1px solid var(--border-color);
-            display: flex;
-            justify-content: space-around;
-            padding: 10px 0;
-        }
-
-        .nav-item {
-            color: var(--text-sub);
-            text-decoration: none;
-            font-size: 12px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 4px;
-            cursor: pointer;
-        }
-
-        .nav-item.active { color: var(--accent-gold); }
-
-        /* منطقة الدردشة في الغرفة */
-        .chat-box {
-            background: #141417;
-            border: 1px solid var(--border-color);
-            border-radius: 10px;
-            height: 120px;
-            overflow-y: auto;
-            padding: 8px;
-            font-size: 12px;
-            margin-top: 10px;
-        }
-
-        .chat-msg { margin-bottom: 4px; }
-        .chat-msg span { color: var(--accent-gold); font-weight: bold; }
-    </style>
-</head>
-<body>
-
-    <header>
-        <div class="logo-title"><i class="fas fa-comments"></i> سوالفنا</div>
-        <button class="ctrl-btn" style="width:35px; height:35px; font-size:14px;" onclick="toggleTheme()"><i class="fas fa-moon"></i></button>
-    </header>
-
-    <div class="container">
-        
-        <!-- الرئيسية -->
-        <div id="home" class="page-section active">
-            <h3 style="margin-bottom: 12px;">الغرف المباشرة الصوتية</h3>
-            
-            <div class="room-card">
-                <div>
-                    <h4>مجلس السمر والأنس 🎙️</h4>
-                    <p style="font-size: 12px; color: var(--text-sub);" id="room1-count"><i class="fas fa-users"></i> متصلة بصوت مباشر</p>
-                </div>
-                <button class="join-btn" onclick="openRoom('مجلس السمر والأنس', 'sawalefna-room-1')">دخول الغرفة</button>
-            </div>
-
-            <div class="room-card">
-                <div>
-                    <h4>ديوانية الشكولاتة والسوالف ☕</h4>
-                    <p style="font-size: 12px; color: var(--text-sub);"><i class="fas fa-users"></i> غرف عامة مفتوحة</p>
-                </div>
-                <button class="join-btn" onclick="openRoom('ديوانية الشكولاتة', 'sawalefna-room-2')">دخول الغرفة</button>
-            </div>
-        </div>
-
-        <!-- واجهة الغرفة الصوتية المباشرة الحقيقية -->
-        <div id="roomView" class="page-section">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <h3 id="currentRoomTitle">اسم الغرفة</h3>
-                <button onclick="leaveRoom()" style="background:red; color:#fff; border:none; padding:6px 14px; border-radius:12px; font-weight:bold;">خروج</button>
-            </div>
-
-            <!-- المقاعد الصوتية -->
-            <div class="seats-grid" id="seatsContainer">
-                <!-- سيتم توليد المقاعد تلقائياً -->
-            </div>
-
-            <!-- محادثة كتابية داخل الغرفة -->
-            <div class="chat-box" id="chatBox">
-                <div class="chat-msg"><span>النظام:</span> أهلاً بك في الغرفة الصوتية المباشرة!</div>
-            </div>
-
-            <!-- أزرار التحكم بالصوت -->
-            <div class="voice-controls">
-                <button class="ctrl-btn" id="micBtn" onclick="toggleMic()"><i class="fas fa-microphone-slash"></i></button>
-                <button class="ctrl-btn" onclick="sendHandRaise()"><i class="fas fa-hand"></i></button>
-                <button class="ctrl-btn" onclick="sendGift()"><i class="fas fa-gift"></i></button>
-            </div>
-        </div>
-
-        <!-- باقي الصفحات -->
-        <div id="explore" class="page-section">
-            <h3>اكتشف الغرف والأصدقاء</h3>
-            <p style="color: var(--text-sub); margin-top: 10px;">ابحث عن غرف صوتية أخرى متصلة حالياً.</p>
-        </div>
-
-        <div id="messages" class="page-section">
-            <h3>الرسائل الخاصة</h3>
-            <p style="color: var(--text-sub); margin-top: 10px;">لا يوجد رسائل جديدة.</p>
-        </div>
-
-        <div id="profile" class="page-section">
-            <div style="text-align: center; margin-top: 20px;">
-                <div class="avatar-box" style="width: 80px; height: 80px; margin: 0 auto; font-size: 30px;">
-                    <i class="fas fa-user"></i>
-                </div>
-                <h3 style="margin-top: 10px;" id="userNameTag">عبود</h3>
-                <p style="color: var(--accent-gold); font-size: 14px;">عضو مسجّل ⭐️</p>
-            </div>
-        </div>
-
-    </div>
-
-    <!-- شريط التنقل -->
-    <nav class="bottom-nav">
-        <div class="nav-item active" onclick="switchTab('home', this)"><i class="fas fa-home"></i>الرئيسية</div>
-        <div class="nav-item" onclick="switchTab('explore', this)"><i class="fas fa-compass"></i>اكتشف</div>
-        <div class="nav-item" onclick="switchTab('messages', this)"><i class="fas fa-comment-dots"></i>الرسائل</div>
-        <div class="nav-item" onclick="switchTab('profile', this)"><i class="fas fa-user"></i>حسابي</div>
-    </nav>
-
-    <!-- مشغل الصوت المخفي للأجهزة الأخرى -->
-    <div id="audioContainer" style="display:none;"></div>
-
-    <script>
-        let localStream = null;
-        let peer = null;
-        let isMicOn = false;
-        let mySeatIndex = -1;
-        let currentRoomId = '';
-
-        // إنشاء مقاعد الغرفة (8 مقاعد)
-        function renderSeats() {
-            const container = document.getElementById('seatsContainer');
-            container.innerHTML = '';
-            for (let i = 0; i < 8; i++) {
-                const isOccupied = (i === mySeatIndex);
-                container.innerHTML += `
-                    <div class="seat" onclick="claimSeat(${i})">
-                        <div class="avatar-box ${isOccupied ? '' : 'empty'}">
-                            <i class="fas ${isOccupied ? 'fa-user' : 'fa-plus'}"></i>
-                            ${isOccupied ? `<div class="mic-status ${isMicOn ? '' : 'off'}"><i class="fas ${isMicOn ? 'fa-mic' : 'fa-mic-slash'}"></i></div>` : ''}
-                        </div>
-                        <span style="font-size: 11px;">${isOccupied ? 'أنت' : 'مقعد ' + (i+1)}</span>
-                    </div>
-                `;
-            }
-        }
-
-        async function initAudio() {
-            try {
-                localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-                // كتم الميكروفون في البداية
-                localStream.getAudioTracks()[0].enabled = false;
-            } catch (err) {
-                alert("يرجى إعطاء إذن الميكروفون للتمكن من التحدث داخل الغرف الصوتية.");
-            }
-        }
-
-        function openRoom(title, roomId) {
-            currentRoomId = roomId;
-            document.querySelectorAll('.page-section').forEach(sec => sec.classList.remove('active'));
-            document.getElementById('roomView').classList.add('active');
-            document.getElementById('currentRoomTitle').innerText = title;
-            
-            initAudio();
-            renderSeats();
-            connectToVoiceRoom(roomId);
-        }
-
-        function connectToVoiceRoom(roomId) {
-            // الاتصال بخادم الصوت المباشر WebRTC
-            peer = new Peer();
-
-            peer.on('open', (id) => {
-                addChatMessage("النظام", "تم الاتصال بالخادم الصوتي المباشر بنجاح.");
-            });
-
-            peer.on('call', (call) => {
-                call.answer(localStream);
-                call.on('stream', (remoteStream) => {
-                    playRemoteAudio(remoteStream, call.peer);
-                });
-            });
-        }
-
-        function playRemoteAudio(stream, peerId) {
-            let audioEl = document.getElementById('audio-' + peerId);
-            if (!audioEl) {
-                audioEl = document.createElement('audio');
-                audioEl.id = 'audio-' + peerId;
-                audioEl.autoplay = true;
-                document.getElementById('audioContainer').appendChild(audioEl);
-            }
-            audioEl.srcObject = stream;
-        }
-
-        function claimSeat(index) {
-            mySeatIndex = index;
-            renderSeats();
-            addChatMessage("النظام", `جلست في المقعد رقم ${index + 1}`);
-        }
-
-        async function toggleMic() {
-            if (!localStream) await initAudio();
-
-            const btn = document.getElementById('micBtn');
-            const icon = btn.querySelector('i');
-            
-            isMicOn = !isMicOn;
-            if (localStream && localStream.getAudioTracks().length > 0) {
-                localStream.getAudioTracks()[0].enabled = isMicOn;
-            }
-
-            if (isMicOn) {
-                btn.classList.add('active');
-                icon.className = 'fas fa-microphone';
-                addChatMessage("أنت", "قمت بفتح الميكروفون 🎙️");
-            } else {
-                btn.classList.remove('active');
-                icon.className = 'fas fa-microphone-slash';
-                addChatMessage("أنت", "قمت بكتم الميكروفون 🔇");
-            }
-            renderSeats();
-        }
-
-        function sendHandRaise() {
-            addChatMessage("أنت", "قمت برفع اليد لطلب التحدث ✋");
-        }
-
-        function sendGift() {
-            addChatMessage("أنت", "أرسلت هدية عطر ذهبي 🎁✨");
-        }
-
-        function addChatMessage(sender, text) {
-            const box = document.getElementById('chatBox');
-            box.innerHTML += `<div class="chat-msg"><span>${sender}:</span> ${text}</div>`;
-            box.scrollTop = box.scrollHeight;
-        }
-
-        function leaveRoom() {
-            if (localStream) {
-                localStream.getTracks().forEach(track => track.stop());
-            }
-            if (peer) peer.destroy();
-            mySeatIndex = -1;
-            isMicOn = false;
-            switchTab('home', document.querySelectorAll('.nav-item')[0]);
-        }
-
-        function switchTab(tabId, element) {
-            document.querySelectorAll('.page-section').forEach(sec => sec.classList.remove('active'));
-            document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
-            document.getElementById(tabId).classList.add('active');
-            element.classList.add('active');
-        }
-
-        function toggleTheme() {
-            document.body.classList.toggle('light-theme');
-        }
-    </script>
-</body>
-</html>
+function initializeUserInterface(name, id) {
+    // تحديث عناصر الصفحة لتعكس اسم المستخدم الحقيقي بدلاً من الأسماء الثابتة
+    const userLabel = document.querySelector('.my-username-display'); // حدد العنصر الخاص بعرض اسمك في الواجهة
+    if (userLabel) {
+        userLabel.textContent = name;
+    }
+}
