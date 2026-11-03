@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>سوالفنا - Sawalefna Live</title>
-    <!-- مكتبة Supabase للربط الحي -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <title>سوالفنا - Sawalefna LiveKit Suite</title>
+    <!-- مكتبة LiveKit العميل للبث الصوتي -->
+    <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.js"></script>
     <style>
         :root {
             --bg-color: #0f172a;
-            --card-bg: rgba(30, 41, 59, 0.7);
+            --card-bg: rgba(30, 41, 59, 0.75);
             --accent-color: #38bdf8;
             --text-color: #f8fafc;
             --border-color: rgba(255, 255, 255, 0.1);
@@ -29,20 +29,20 @@
             width: 100%;
             max-width: 420px;
             background: var(--card-bg);
-            backdrop-filter: blur(12px);
+            backdrop-filter: blur(14px);
             border: 1px solid var(--border-color);
             border-radius: 24px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.6);
             overflow: hidden;
             display: flex;
             flex-direction: column;
-            height: 92vh;
+            height: 95vh;
         }
         .app-header {
             padding: 15px;
             text-align: center;
             border-bottom: 1px solid var(--border-color);
-            background: rgba(15, 23, 42, 0.5);
+            background: rgba(15, 23, 42, 0.6);
         }
         .app-header h1 {
             margin: 0;
@@ -118,7 +118,7 @@
             opacity: 0.9;
         }
         .chat-box {
-            height: 130px;
+            height: 110px;
             background: rgba(0,0,0,0.2);
             border-radius: 8px;
             padding: 8px;
@@ -136,22 +136,17 @@
             border-radius: 6px;
             word-break: break-word;
         }
-        .audio-controls {
-            display: flex;
-            gap: 10px;
-            margin-top: 8px;
-        }
     </style>
 </head>
 <body>
 
 <div class="app-container">
     <div class="app-header">
-        <h1>🎙️ منصة سوالفنا (تحديث حي متزامن)</h1>
+        <h1>🎙️ منصة سوالفنا (Sawalefna)</h1>
     </div>
 
     <div class="content-area">
-        <!-- قسم الهوية وتوليد الأيدي -->
+        <!-- قسم الهوية وتوليد الـ ID -->
         <div class="section">
             <div class="profile-card">
                 <div class="avatar-box" id="avatarPreviewContainer">
@@ -159,36 +154,36 @@
                 </div>
                 <div>
                     <h3 id="displayNickname" style="margin:0; font-size:1rem;">زائر جديد</h3>
-                    <span id="displayId" style="font-size:0.75rem; color:var(--accent-color);">ID: جاري الإنشاء...</span>
+                    <span id="displayId" style="font-size:0.75rem; color:var(--accent-color);">ID: جاري التوليد...</span>
                 </div>
             </div>
             <div style="margin-top: 12px;">
                 <div class="input-group">
                     <label>الاسم المستعار:</label>
-                    <input type="text" id="nicknameInput" placeholder="أدخل اسمك...">
+                    <input type="text" id="nicknameInput" placeholder="أدخل اسمك المستعار...">
                 </div>
                 <div class="input-group">
                     <label>رابط الصورة الشخصية (URL):</label>
                     <input type="text" id="avatarInput" placeholder="https://...">
                 </div>
-                <button class="btn" onclick="saveProfile()">حفظ واعتماد الهوية</button>
+                <button class="btn" onclick="saveProfile()">حفظ الهوية وتحديث الـ ID</button>
             </div>
         </div>
 
-        <!-- قسم الصوت (محاكاة الاتصال المباشر) -->
-        <div class="section" style="padding: 10px 14px;">
-            <h4 style="margin:0 0 8px 0; font-size: 0.9rem;">بث الصوت المباشر (Voice Stream)</h4>
-            <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.85rem; color: #10b981;">
-                <span id="micStatus">الميكروفون مغلق</span>
-                <button class="btn" id="micBtn" onclick="toggleMic()" style="width: auto; padding: 5px 12px; background: #10b981; color: #fff;">فتح الميكروفون</button>
+        <!-- قسم الصوت الحي عبر LiveKit -->
+        <div class="section" style="padding: 12px 14px;">
+            <h4 style="margin:0 0 8px 0; font-size: 0.9rem;">غرفة الاتصال الصوتي</h4>
+            <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.85rem;">
+                <span id="voiceStatus" style="color: #94a3b8;">غير متصل بالصوت</span>
+                <button class="btn" id="voiceToggleBtn" onclick="toggleVoiceRoom()" style="width: auto; padding: 6px 14px; background: #10b981; color: #fff;">انضمام للصوت</button>
             </div>
         </div>
 
-        <!-- قسم الدردشة الفورية -->
+        <!-- قسم الدردشة الحية -->
         <div class="section" style="margin-bottom: 0;">
             <h4 style="margin:0 0 8px 0; font-size: 0.9rem;">الدردشة العامة</h4>
             <div class="chat-box" id="chatBox">
-                <div class="chat-message"><b>النظام:</b> جاري الاتصال بقناة الغرفة...</div>
+                <div class="chat-message"><b>النظام:</b> أهلاً بك في غرفة سوالفنا.</div>
             </div>
             <div style="display: flex; gap: 6px;">
                 <input type="text" id="chatInput" placeholder="اكتب رسالتك..." onkeypress="handleKeyPress(event)" style="flex:1; padding:8px; border-radius:8px; border:1px solid var(--border-color); background:rgba(0,0,0,0.2); color:#fff; font-size:0.85rem;">
@@ -199,37 +194,25 @@
 </div>
 
 <script>
-    // بيانات الاتصال بقاعدة بيانات سوبابيس (قم بوضع بيانات مشروعك الحقيقي هنا لاحقاً)
-    const SUPABASE_URL = 'YOUR_SUPABASE_URL';
-    const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY';
-    
-    // تهيئة العميل (إذا لم تقم بوضع المفاتيح سيعمل التطبيق محلياً كوضع تجريبي مؤقت)
-    let supabaseClient = null;
-    try {
-        if (SUPABASE_URL !== 'YOUR_SUPABASE_URL') {
-            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        }
-    } catch(e) { console.log("وضع التشغيل المحلي"); }
+    // رابط خادم LiveKit الخاص بك
+    const LIVEKIT_URL = 'wss://aboudswo-p_6ok8wbymhk.livekit.cloud';
+    // عنوان سيرفر بايثون المحلي (Termux) لجلب التوكنات أوتوماتيكياً
+    const TOKEN_SERVER_URL = 'http://localhost:8080/get-token';
 
-    // إدارة الهوية والـ ID المحلي
+    // إدارة هوية الضيف والـ ID الفريد
     let currentUser = JSON.parse(localStorage.getItem('sawalefna_profile')) || {
         id: 'SW-' + Math.floor(100000 + Math.random() * 900000),
-        nickname: 'ضيف_' + Math.floor(Math.random() * 900),
+        nickname: 'ضـيف_' + Math.floor(Math.random() * 900),
         avatar: ''
     };
 
-    let isMicActive = false;
+    let room = null;
+    let isConnectedToVoice = false;
 
     function initApp() {
         document.getElementById('nicknameInput').value = currentUser.nickname;
         document.getElementById('avatarInput').value = currentUser.avatar;
         updateUI();
-        
-        if (supabaseClient) {
-            subscribeToRealtime();
-        } else {
-            appendSystemMessage("تم تفعيل وضع المحاكاة المحلية بنجاح. أضف مفاتيح سوبابيس لربط الأجهزة الحقيقية.");
-        }
     }
 
     function updateUI() {
@@ -253,86 +236,85 @@
 
         localStorage.setItem('sawalefna_profile', JSON.stringify(currentUser));
         updateUI();
-        alert('تم تحديث الهوية وحفظ الـ ID بنجاح!');
+        alert('تم حفظ الهوية وتحديث الـ ID بنجاح!');
     }
 
-    function appendSystemMessage(text) {
-        const chatBox = document.getElementById('chatBox');
-        const msgDiv = document.createElement('div');
-        msgDiv.className = 'chat-message';
-        msgDiv.style.color = '#38bdf8';
-        msgDiv.innerHTML = `<b>النظام:</b> ${text}`;
-        chatBox.appendChild(msgDiv);
-        chatBox.scrollTop = chatBox.scrollHeight;
+    // --- نظام الاتصال الصوتي التلقائي عبر LiveKit وسيرفر التوكنات ---
+    async function toggleVoiceRoom() {
+        const statusEl = document.getElementById('voiceStatus');
+        const btnEl = document.getElementById('voiceToggleBtn');
+
+        if (!isConnectedToVoice) {
+            try {
+                statusEl.innerText = "جاري جلب التوكن والاتصال...";
+                
+                // طلب توكن أمني فريد لهذا الضيف من سيرفر بايثون المحلي
+                const response = await fetch(`${TOKEN_SERVER_URL}?room=sawalefna-room&id=${currentUser.id}&name=${encodeURIComponent(currentUser.nickname)}`);
+                const data = await response.json();
+
+                if (!data.token) {
+                    throw new Error("فشل في استخراج التوكن من السيرفر");
+                }
+
+                room = new LivekitClient.Room({
+                    audioCaptureDefaults: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true,
+                    },
+                });
+
+                room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
+                    if (track.kind === LivekitClient.Track.Kind.Audio) {
+                        const audioElement = track.attach();
+                        document.body.appendChild(audioElement);
+                    }
+                });
+
+                // الاتصال بغرفة LiveKit بالتوكن الخاص بالضيف
+                await room.connect(LIVEKIT_URL, data.token);
+                await room.localParticipant.enableMicrophone();
+
+                isConnectedToVoice = true;
+                statusEl.innerText = "متصل بالغرفة الصوتية 🟢";
+                statusEl.style.color = "#10b981";
+                btnEl.innerText = "مغادرة الصوت";
+                btnEl.style.background = "#ef4444";
+
+            } catch (error) {
+                console.error(error);
+                statusEl.innerText = "خطأ في الاتصال (تأكد من تشغيل سيرفر بايثون)";
+                statusEl.style.color = "#ef4444";
+            }
+        } else {
+            if (room) {
+                room.disconnect();
+            }
+            isConnectedToVoice = false;
+            statusEl.innerText = "غير متصل بالصوت";
+            statusEl.style.color = "#94a3b8";
+            btnEl.innerText = "انضمام للصوت";
+            btnEl.style.background = "#10b981";
+        }
     }
 
+    // --- نظام الدردشة الفورية ---
     function sendChatMessage() {
         const input = document.getElementById('chatInput');
         const text = input.value.trim();
         if (!text) return;
 
-        const messageData = {
-            id: currentUser.id,
-            nickname: currentUser.nickname,
-            avatar: currentUser.avatar,
-            text: text,
-            time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-        };
-
-        if (supabaseClient) {
-            // إرسال الرسالة لقاعدة البيانات عبر سوبابيس
-            supabaseClient.from('messages').insert([messageData]).then(({ error }) => {
-                if (error) console.log(error);
-            });
-        } else {
-            // عرضها محلياً في حال عدم ربط السيرفر
-            displayMessage(messageData);
-        }
-
-        input.value = '';
-    }
-
-    function displayMessage(data) {
         const chatBox = document.getElementById('chatBox');
         const msgDiv = document.createElement('div');
         msgDiv.className = 'chat-message';
-        msgDiv.innerHTML = `<b>${data.nickname} (${data.id}):</b> ${data.text}`;
+        msgDiv.innerHTML = `<b>${currentUser.nickname} (${currentUser.id}):</b> ${text}`;
         chatBox.appendChild(msgDiv);
         chatBox.scrollTop = chatBox.scrollHeight;
+        input.value = '';
     }
 
     function handleKeyPress(e) {
         if (e.key === 'Enter') sendChatMessage();
-    }
-
-    // إدارة تدفق الصوت (WebRTC / Audio Stream Simulation)
-    function toggleMic() {
-        isMicActive = !isMicActive;
-        const statusEl = document.getElementById('micStatus');
-        const btnEl = document.getElementById('micBtn');
-
-        if (isMicActive) {
-            statusEl.innerText = "الميكروفون يعمل (بث مباشر)";
-            statusEl.style.color = "#ef4444";
-            btnEl.innerText = "إغلاق الميكروفون";
-            btnEl.style.background = "#ef4444";
-            // هنا يتم تشغيل تفعيل مسار الصوت الحقيقي عبر WebRTC في الإنتاج
-        } else {
-            statusEl.innerText = "الميكروفون مغلق";
-            statusEl.style.color = "#10b981";
-            btnEl.innerText = "فتح الميكروفون";
-            btnEl.style.background = "#10b981";
-        }
-    }
-
-    function subscribeToRealtime() {
-        // الاستماع للرسائل الجديدة لحظياً عبر قنوات سوبابيس
-        supabaseClient.channel('room_sawalefna')
-            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
-                displayMessage(payload.new);
-            })
-            .subscribe();
-        appendSystemMessage("تم الاتصال بالسيرفر السحابي بنجاح.");
     }
 
     window.onload = initApp;
