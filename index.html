@@ -170,7 +170,7 @@
             </div>
         </div>
 
-        <!-- قسم الصوت الحي عبر LiveKit -->
+        <!-- قسم الصوت الحي عبر LiveKit ودالة Supabase -->
         <div class="section" style="padding: 12px 14px;">
             <h4 style="margin:0 0 8px 0; font-size: 0.9rem;">غرفة الاتصال الصوتي</h4>
             <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.85rem;">
@@ -194,12 +194,13 @@
 </div>
 
 <script>
-    // رابط خادم LiveKit الخاص بك
+    // رابط خادم LiveKit
     const LIVEKIT_URL = 'wss://aboudswo-p_6ok8wbymhk.livekit.cloud';
-    // عنوان سيرفر بايثون المحلي (Termux) لجلب التوكنات أوتوماتيكياً
-    const TOKEN_SERVER_URL = 'http://localhost:8080/get-token';
+    
+    // رابط دالة سوبابيس السحابية المحدث
+    const TOKEN_API_URL = 'https://aboudswo.supabase.co/functions/v1/generate-token';
 
-    // إدارة هوية الضيف والـ ID الفريد
+    // إدارة هوية الضيف والـ ID الفريد محلياً
     let currentUser = JSON.parse(localStorage.getItem('sawalefna_profile')) || {
         id: 'SW-' + Math.floor(100000 + Math.random() * 900000),
         nickname: 'ضـيف_' + Math.floor(Math.random() * 900),
@@ -239,7 +240,7 @@
         alert('تم حفظ الهوية وتحديث الـ ID بنجاح!');
     }
 
-    // --- نظام الاتصال الصوتي التلقائي عبر LiveKit وسيرفر التوكنات ---
+    // --- نظام الاتصال الصوتي عبر دالة سوبابيس وLiveKit للعامة ---
     async function toggleVoiceRoom() {
         const statusEl = document.getElementById('voiceStatus');
         const btnEl = document.getElementById('voiceToggleBtn');
@@ -248,12 +249,12 @@
             try {
                 statusEl.innerText = "جاري جلب التوكن والاتصال...";
                 
-                // طلب توكن أمني فريد لهذا الضيف من سيرفر بايثون المحلي
-                const response = await fetch(`${TOKEN_SERVER_URL}?room=sawalefna-room&id=${currentUser.id}&name=${encodeURIComponent(currentUser.nickname)}`);
+                // طلب التوكن الأمني أوتوماتيكياً من دالة Supabase مرسلين معها الـ ID والاسم
+                const response = await fetch(`${TOKEN_API_URL}?room=sawalefna-room&id=${currentUser.id}&name=${encodeURIComponent(currentUser.nickname)}`);
                 const data = await response.json();
 
                 if (!data.token) {
-                    throw new Error("فشل في استخراج التوكن من السيرفر");
+                    throw new Error("فشل في استخراج التوكن من السحابي");
                 }
 
                 room = new LivekitClient.Room({
@@ -271,7 +272,7 @@
                     }
                 });
 
-                // الاتصال بغرفة LiveKit بالتوكن الخاص بالضيف
+                // الاتصال بغرفة LiveKit بالتوكن السحابي المخصص لهذا الضيف
                 await room.connect(LIVEKIT_URL, data.token);
                 await room.localParticipant.enableMicrophone();
 
@@ -283,7 +284,7 @@
 
             } catch (error) {
                 console.error(error);
-                statusEl.innerText = "خطأ في الاتصال (تأكد من تشغيل سيرفر بايثون)";
+                statusEl.innerText = "خطأ في الاتصال (تحقق من إعدادات المفاتيح)";
                 statusEl.style.color = "#ef4444";
             }
         } else {
